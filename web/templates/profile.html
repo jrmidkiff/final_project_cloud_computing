@@ -1,0 +1,63 @@
+<!--
+profile.html - Display user account details and link to upgrade (for Free users)
+Copyright (C) 2011-2020 Vas Vasiliadis <vas@uchicago.edu>
+University of Chicago
+-->
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block body %}
+
+  {% include "header.html" %}
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Profile</h1>
+    </div>
+
+    <form role="form" action="{{ url_for('profile') }}" method="POST">
+      <div class="row">
+        <div class="form-group col-md-5">
+          <label for="primary_identity">Globus Identity ID</label>
+          <input type="text" class="form-control input-lg" id="primary_identity" name="primary_identity" disabled="disabled" value="{{ session['primary_identity'] }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-4">
+          <label for="name">Name</label>
+          <input type="text" class="form-control input-lg" id="name" name="name" placeholder="full name" required="required" tabindex="1" value="{{ session['name'] }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-4">
+          <label for="email">Email</label>
+          <input type="email" class="form-control input-lg" id="email" name="email" placeholder="me@example.com" required="required" tabindex="2" value="{{ session['email'] }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group col-md-5">
+          <label for="institution">Institution/Department</label>
+          <input type="text" class="form-control input-lg" id="institution" name="institution" required="required" tabindex="3" value="{{ session['institution'] }}">
+        </div>
+      </div>
+
+      <p><strong>Current Plan</strong>: 
+        {% if session['role'] == "free_user" %}
+        Free &middot; <a href="{{url_for('subscribe')}}">upgrade to Premium plan</a>
+        {% else %}
+        Premium &middot; <a href="{{url_for('unsubscribe')}}">cancel my Premium plan</a>
+        {% endif %}
+      </p>
+
+      <br />
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+
+  </div>
+{% endblock %}

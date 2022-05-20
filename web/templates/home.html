@@ -1,0 +1,73 @@
+<!--
+home.html - Home page for the GAS (only page available to unauthenticated users)
+Copyright (C) 2011-2020 Vas Vasiliadis <vas@uchicago.edu>
+University of Chicago
+-->
+
+{%extends "base.html"%}
+
+{%block title%}Home{%endblock%}
+
+{%block body%}
+<!-- Page Header -->
+<!-- Set background image for this header on the line below. -->
+<header class="intro-header" style="background-image: url({{url_for('static', filename='img/home-bg.jpg')}})">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-10 col-md-offset-1">
+        <div class="site-heading">
+          <h1>Genomics Annotation Service</h1>
+          <hr class="small">
+          <h2>It's a gas! (and useful too)</h2>
+          <br />
+          <a class="btn btn-large btn-default" href="/login"><span class="lead"><strong>Get started - it's free!</strong></span></a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<div class="container">
+
+  {%include 'messages.html'%}
+
+  <div class="row">
+    <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+      <div class="post-preview">
+        <a href="{{url_for('subscribe')}}" target="_blank">
+          <h2 class="post-title">Get Premium&mdash;just $999.99 per week!</h2>
+        </a>
+        <p class="post-subtitle"><strong>Unlimited annotations.<br />
+        Unlimited data storage.<br />
+        Unlimited coffee and donuts. </strong><small>(subject to FDA limits)</small></p>
+      </div>
+      <hr />
+      <div class="post-preview">
+        <a href="#" target="_blank">
+          <h2 class="post-title">What others are saying...</h2>
+        </a>
+        <p class="post-subtitle"><strong>The best GAS I've ever used! No sh*t!</strong><br />
+        <small><i>Annonymous user, Edmonton, CA</i><br /><br /></small>
+        <strong>Faster than your grandfather's annotation engine. More accurate than a slide rule. The time before GAS seems like the Dark Ages!</strong><br />
+        <small><i>Vincent Gambini, New York Genomics Emporium, NYC</i></small></p>
+      </div>
+      <hr />
+      <div class="post-preview">
+        <a href="#" target="_blank">
+          <h2 class="post-title">How the GAS Works</h2>
+        </a>
+        <p class="post-subtitle">Annotation is a process by which a sequenced genome sample is analyzed to identify the locations of genes and all of the coding regions in a genome, and determine what those genes do. The GAS attaches “notes” to the genome sequence so that it may be interpreted by downstream analysis tools (or really smart humans).</p>
+      </div>
+      <hr />
+
+      <!-- Pager -->
+      <ul class="pager">
+        <li class="next">
+          <a href="#" target="_blank">Learn more &rarr;</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+</div> <!-- container -->
+{%endblock%}

@@ -1,0 +1,83 @@
+<!--
+scripts.html - All GAS-specific Javascript
+Copyright (C) 2011-2020 Vas Vasiliadis <vas@uchicago.edu>
+University of Chicago
+-->
+<script type="text/javascript">
+// Navigation Scripts to Show Header on Scroll-Up
+jQuery(document).ready(function($) {
+  var MQL = 1170;
+
+  //primary navigation slide-in effect
+  if ($(window).width() > MQL) {
+    var headerHeight = $('.navbar-custom').height();
+    $(window).on('scroll', {previousTop: 0},
+      function() {
+        var currentTop = $(window).scrollTop();
+        //check if user is scrolling up
+        if (currentTop < this.previousTop) {
+          //if scrolling up...
+          if (currentTop > 0 && $('.navbar-custom').hasClass('is-fixed')) {
+            $('.navbar-custom').addClass('is-visible');
+          } else {
+            $('.navbar-custom').removeClass('is-visible is-fixed');
+          }
+        } else {
+          //if scrolling down...
+          $('.navbar-custom').removeClass('is-visible');
+          if (currentTop > headerHeight && !$('.navbar-custom').hasClass('is-fixed')) $('.navbar-custom').addClass('is-fixed');
+        }
+        this.previousTop = currentTop;
+      });
+    }
+});
+
+// Updates the page after a short delay (default 3 sec.)
+function pageUpdate(timeoutDelay, redirectUrl) {
+  timeoutDelay = typeof timeoutDelay !== 'undefined' ? timeoutDelay : 3000;
+  redirectUrl = typeof redirectUrl !== 'undefined' ? redirectUrl : window.location.href;
+  window.setTimeout(function() {
+    window.location.href = redirectUrl;
+  }, timeoutDelay);
+}
+
+$(function() {
+   $('#flash').delay(1500).fadeIn('normal', function() {
+      $(this).delay(3000).fadeOut();
+   });
+});
+
+// Manage file select control
+$(document).on('change', '.btn-file :file', function() {
+  var input = $(this),
+    numFiles = input.get(0).files ? input.get(0).files.length : 1,
+    label = input.val().replace(/\\/g, '/').replace(/.*\//, '');
+    input.trigger('fileselect', [numFiles, label]);
+});
+
+$(document).ready( function() {
+  $('.btn-file :file').on('fileselect', function(event, numFiles, label) {
+        
+    var input = $(this).parents('.input-group').find(':text'),
+      log = numFiles > 1 ? numFiles + ' files selected' : label;
+        
+    if( input.length ) {
+      input.val(log);
+    } else {
+      if( log ) alert(log);
+    }
+        
+  });
+});
+
+// Disable submit button until file is selected
+$(document).ready( function(){
+  $('input:file').change( function(){
+    if ($(this).val()) {
+      $('input:submit').attr('disabled',false);
+      // or, as has been pointed out elsewhere:
+      // $('input:submit').removeAttr('disabled'); 
+    } 
+  });
+});
+</script>
