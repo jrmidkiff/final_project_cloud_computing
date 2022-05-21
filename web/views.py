@@ -27,6 +27,8 @@ from auth import get_profile, update_profile
 
 import re
 UUID_REGEX = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}'
+dynamodb = boto3.client('dynamodb')
+sqs = boto3.client('sqs')
 
 """Start annotation request
 Create the required AWS S3 policy document and render a form for
@@ -39,14 +41,14 @@ but you can replace the code below with your own if you prefer.
 @authenticated
 def annotate():
   # Create a session client to the S3 service
+  abort(405)
   s3 = boto3.client('s3',
     region_name=app.config['AWS_REGION_NAME'],
     config=Config(signature_version='s3v4'))
 
   bucket_name = app.config['AWS_S3_INPUTS_BUCKET']
-  user_id = session['primary_identity']
-  print(f'user_id: {user_id}')
-
+  user_id = session['primary_identity'] # Globus Identity ID is a UUID
+  
   # Generate unique ID to be used as S3 key (name)
   key_name = app.config['AWS_S3_KEY_PREFIX'] + user_id + '/' + \
     str(uuid.uuid4()) + '~${filename}'
@@ -101,10 +103,30 @@ def create_annotation_job_request():
     s3_key = str(request.args.get('key'))
 
     # Extract the job ID from the S3 key
-    # job_id = re.
-    print(f'request.args: {request.args}')
+    job_id = re.findall(UUID_REGEX, s3_key)[1] # [0] is the Globus Identity ID
+    
     # Persist job to database
-    # Move your code here...
+        dynamodb = boto3.client('dynamodb')
+    try: 
+        dynamodb.put_item(
+            TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
+            Item=dynamo_data, 
+            ConditionExpression='attribute_not_exists(job_id)'
+        )
+    except exceptions.ClientError as e: # Job was already uploaded to cloud
+        code = e.response['Error']['Code']
+        if code == 'ConditionalCheckFailedException': 
+            return {
+                'code': 400, 
+                'status': 'Bad Request', 
+                'message': f'This job was already run and uploaded to the cloud. Action halted to avoid duplication.',
+            }      
+        else: 
+            return {
+                'code': 500, 
+                'status': 'Server Error', 
+                'message': f'An error occurred: {e}',
+            } 
 
     # Send message to request queue
     # Move your code here...
