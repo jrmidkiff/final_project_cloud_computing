@@ -25,6 +25,8 @@ from gas import app, db
 from decorators import authenticated, is_premium
 from auth import get_profile, update_profile
 
+import re
+UUID_REGEX = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}'
 
 """Start annotation request
 Create the required AWS S3 policy document and render a form for
@@ -43,6 +45,7 @@ def annotate():
 
   bucket_name = app.config['AWS_S3_INPUTS_BUCKET']
   user_id = session['primary_identity']
+  print(f'user_id: {user_id}')
 
   # Generate unique ID to be used as S3 key (name)
   key_name = app.config['AWS_S3_KEY_PREFIX'] + user_id + '/' + \
@@ -93,19 +96,19 @@ homework assignments
 @authenticated
 def create_annotation_job_request():
 
-  # Get bucket name, key, and job ID from the S3 redirect URL
-  bucket_name = str(request.args.get('bucket'))
-  s3_key = str(request.args.get('key'))
+    # Get bucket name, key, and job ID from the S3 redirect URL
+    bucket_name = str(request.args.get('bucket'))
+    s3_key = str(request.args.get('key'))
 
-  # Extract the job ID from the S3 key
+    # Extract the job ID from the S3 key
+    # job_id = re.
+    print(f'request.args: {request.args}')
+    # Persist job to database
+    # Move your code here...
 
-  # Persist job to database
-  # Move your code here...
-
-  # Send message to request queue
-  # Move your code here...
-
-  return render_template('annotate_confirm.html', job_id=job_id)
+    # Send message to request queue
+    # Move your code here...
+    return render_template('annotate_confirm.html', job_id=job_id)
 
 
 """List all annotations for the user
