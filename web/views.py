@@ -41,7 +41,7 @@ but you can replace the code below with your own if you prefer.
 @authenticated
 def annotate():
   # Create a session client to the S3 service
-  abort(405)
+  
   s3 = boto3.client('s3',
     region_name=app.config['AWS_REGION_NAME'],
     config=Config(signature_version='s3v4'))
@@ -101,36 +101,62 @@ def create_annotation_job_request():
     # Get bucket name, key, and job ID from the S3 redirect URL
     bucket_name = str(request.args.get('bucket'))
     s3_key = str(request.args.get('key'))
-
-    # Extract the job ID from the S3 key
-    job_id = re.findall(UUID_REGEX, s3_key)[1] # [0] is the Globus Identity ID
     
+    # Extract the job ID from the S3 key
+    owner, _, uu_id_file_name = s3_key.split('/')
+    uu_id, file_name = uu_id_file_name.split('~')
+    user_id = session['primary_identity'] # Globus Identity ID is a UUID
+    print(f'session: {session}')
+
+    if not file_name.endswith('.vcf'): # File still gets uploaded though
+        abort(405)
+
     # Persist job to database
-        dynamodb = boto3.client('dynamodb')
+    dynamodb = boto3.client('dynamodb')
+    data = {
+        "job_id": uu_id,
+        "user_id": user_id, 
+        'input_file_name': file_name, 
+        's3_inputs_bucket': bucket_name, 
+        's3_key_input_file': s3_key, 
+        'submit_time': time.time(), 
+        'job_status': 'PENDING'
+    }
+    dynamo_data = {}
+    for key, value in data.items(): 
+        if type(value) == str: 
+            dynamo_data[key] = {'S': value}
+        elif type(value) == float: 
+            dynamo_data[key] = {'N': str(value)}
+    
     try: 
         dynamodb.put_item(
             TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
             Item=dynamo_data, 
             ConditionExpression='attribute_not_exists(job_id)'
         )
-    except exceptions.ClientError as e: # Job was already uploaded to cloud
+    except ClientError as e: # Job was already uploaded to cloud
         code = e.response['Error']['Code']
         if code == 'ConditionalCheckFailedException': 
-            return {
-                'code': 400, 
-                'status': 'Bad Request', 
-                'message': f'This job was already run and uploaded to the cloud. Action halted to avoid duplication.',
-            }      
+            abort(405)    
         else: 
-            return {
-                'code': 500, 
-                'status': 'Server Error', 
-                'message': f'An error occurred: {e}',
-            } 
+            abort(500)
 
     # Send message to request queue
-    # Move your code here...
-    return render_template('annotate_confirm.html', job_id=job_id)
+    sns = boto3.client('sns')
+    try: 
+        response = sns.publish(
+            TopicArn= app.config['AWS_SNS_JOB_REQUEST_TOPIC'],
+            Message=str(dynamo_data)
+        )
+    except exceptions.ClientError as e: # Topic not found
+        code = e.response['Error']['Code']
+        if code == 'NotFound': 
+            abort(404) 
+        else: 
+            abort(500)  
+
+    return render_template('annotate_confirm.html', job_id=uu_id)
 
 
 """List all annotations for the user

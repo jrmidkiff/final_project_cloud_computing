@@ -92,7 +92,7 @@ class Config(object):
 
   # Change the ARNs below to reflect your SNS topics
   AWS_SNS_JOB_REQUEST_TOPIC = \
-    "some-arn-job-requests:jmidkiff_job_requests"
+    "arn:aws:sns:us-east-1:659248683008:jmidkiff_job_requests"
   AWS_SNS_JOB_COMPLETE_TOPIC = \
     "some-arn-job-results:jmidkiff_job_results"
 
