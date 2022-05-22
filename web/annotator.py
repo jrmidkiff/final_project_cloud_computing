@@ -5,16 +5,19 @@ import re
 import subprocess
 import ast
 from botocore import exceptions
+from configparser import ConfigParser
 
-UUID_REGEX = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}'
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/ann_config.ini'
 s3 = boto3.client('s3')
 dynamodb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
-object_prefix = 'jmidkiff/'
 
 def request_annotations():
-    queue_name = 'jmidkiff_job_requests'
-    queue_name_dlq = 'jmidkiff_job_requests_DLQ'
+    config = ConfigParser()
+    config.read_file(open(CONFIG_FILE))
+    
+    queue_name = config.get('AWS', 'SQSRequestsQueueName')
+    queue_name_dlq = config.get('AWS', 'SQSRequestsDLQQueueName')
     try: 
         url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
         url_dql = sqs.get_queue_url(QueueName=queue_name_dlq)['QueueUrl']
@@ -65,9 +68,9 @@ def request_annotations():
         # Get the input file S3 object and copy it to a local file
         # Dont create directory for each result just append the job to file with ~ separator. Please do update when submitting your next assignment
         try: # Error - Job already exists in S3
-            prefix = f'{object_prefix}{new_folders}/'
+            prefix = f'{config.get('AWS', 'Owner')}/{new_folders}/'
             response = s3.list_objects_v2(
-                Bucket='mpcs-cc-gas-results', 
+                Bucket=config.get('AWS', 'ResultsBucket'), 
                 Prefix=prefix)
             response['Contents']
             print({
@@ -102,7 +105,7 @@ def request_annotations():
         # https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html#Expressions.UpdateExpressions.SET
         try: 
             dynamodb.update_item(
-                TableName='jmidkiff_annotations', 
+                TableName=config.get('AWS', 'DynamoDBTable'), 
                 Key={
                     'job_id': {
                         'S': job_id

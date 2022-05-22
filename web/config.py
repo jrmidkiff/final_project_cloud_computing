@@ -94,7 +94,7 @@ class Config(object):
   AWS_SNS_JOB_REQUEST_TOPIC = \
     "arn:aws:sns:us-east-1:659248683008:jmidkiff_job_requests"
   AWS_SNS_JOB_COMPLETE_TOPIC = \
-    "some-arn-job-results:jmidkiff_job_results"
+    "arn:aws:sns:us-east-1:659248683008:jmidkiff_job_results"
 
   # Change the table name to your own
   AWS_DYNAMODB_ANNOTATIONS_TABLE = "jmidkiff_annotations"

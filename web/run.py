@@ -16,6 +16,9 @@ import os
 import re
 import shutil
 from botocore import exceptions
+from configparser import ConfigParser
+
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/ann_config.ini'
 
 """A rudimentary timer for coarse-grained profiling
 """
@@ -35,6 +38,8 @@ class Timer(object):
 
 def main(arg): 
     with Timer():
+        config = ConfigParser()
+        config.read_file(open(CONFIG_FILE))
         user_bad, job_id, file_name = arg.split('~')
         dot, user = user_bad.split('/')
         print(f'user: {user}')
@@ -53,12 +58,11 @@ def main(arg):
         s3 = boto3.client('s3')
         
         d = {}
-        print('are we here?')
-        for x in os.listdir('/home/ec2-user/mpcs-cc'): 
+        for x in os.listdir(config.get('SYSTEM', 'HomeDirectory'): 
             if x.startswith(f'{user}~{job_id}'): 
                 if x.endswith('.annot.vcf') or x.endswith('.count.log'): 
                     _, _2, relevant_file = x.split('~')
-                    file_key = f'jmidkiff/{user}/{job_id}~{relevant_file}'
+                    file_key = f'{config.get('AWS', 'Owner')}/{user}/{job_id}~{relevant_file}'
                     if x.endswith('.annot.vcf'): 
                         d['result_file'] = file_key
                     else: 
@@ -66,7 +70,7 @@ def main(arg):
                     try: 
                         s3.upload_file(
                             Filename=x, 
-                            Bucket='mpcs-cc-gas-results', 
+                            Bucket=config.get('AWS', 'ResultsBucket'), 
                             Key=file_key
                         )
                     except boto3.exceptions.S3UploadFailedError as e: # 
@@ -96,7 +100,7 @@ def main(arg):
         dynamodb = boto3.client('dynamodb')
         try: 
             dynamodb.update_item(
-                TableName='jmidkiff_annotations', 
+                TableName=config.get('AWS', 'DynamoDBTable'), 
                 Key={
                     'job_id': {
                         'S': job_id
@@ -133,7 +137,36 @@ def main(arg):
                 'message': f'Results File or Log File are missing: {e}'
             })
             return None
-            
+        
+        sns = boto3.client('sns')
+        try: 
+            response = sns.publish(
+                TopicArn=app.config['AWS_SNS_JOB_COMPLETE_TOPIC'],
+                Message=str({
+                    'job_id': job_id, 
+                    'job_status': 'COMPLETED', 
+                    's3_key_result_file': d['result_file'], 
+                    's3_key_log_file': d['log_file']
+                    }) # What is the message here?
+            )
+        except exceptions.ClientError as e: # Topic not found
+            code = e.response['Error']['Code']
+            if code == 'NotFound': 
+                print({
+                    'code': 404, 
+                    'status': 'Not Found', 
+                    'message': f'SNS Topic Not Found: {e}'
+                })
+                return None
+            else: 
+                print({
+                    'code': 500, 
+                    'status': 'Server Error', 
+                    'message': f'{e}'
+                })
+                return None
+        
+        
 if __name__ == '__main__':
     # Call the AnnTools pipeline
     if len(sys.argv) > 1:

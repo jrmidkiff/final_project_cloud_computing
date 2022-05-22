@@ -106,8 +106,7 @@ def create_annotation_job_request():
     owner, _, uu_id_file_name = s3_key.split('/')
     uu_id, file_name = uu_id_file_name.split('~')
     user_id = session['primary_identity'] # Globus Identity ID is a UUID
-    print(f'session: {session}')
-
+    
     if not file_name.endswith('.vcf'): # File still gets uploaded though
         abort(405)
 
