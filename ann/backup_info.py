@@ -25,3 +25,21 @@ session: <SecureCookieSession {
         }
     }
 }>
+event = {
+    'Records': [{
+        'messageId': 'af9672f8-7258-4d46-a635-83d0e116cad1', 
+        'receiptHandle': 'AQEBYJTzBmKTo4Ruvlk+vAqRqwRdfts1WMzqDCWCV3qi+JLpMYbzWB04IAQoHx5WlgmWjc/c4/C++nPUDSt+jzkAxtbvq+MCMhAjKWqdVepkPfbxqSB+O9mZmQEgeP731LXe7wdiz+6df2wij3iJCp1ktu0Hv/AtNRmwppsgKeN3oKNXm4s9vQ+AEtOJ4Kddmrbjyd/O4zxulBe+9SDbqe2l2r+susn3kCzJCL0pTcrOUXYgrphLlpBaQ1gSIJqfcjSXgUCdIweEk0+6ZJCwhK0BkzCDueRX6eiC67tbEHyjrylQ6yCyGG9xg8QW/zWtouD2MlXgHlwJz/s5uU2E2naOhaN8TK8vMpTCekF5T50HaIUQ+yJHamUR19KW9NbAqU7dcSKWF0lnmVsJMLCDiowv6Q==', 
+        'body': '{\n  "Type" : "Notification",\n  "MessageId" : "5bdb7c6a-af3c-58a6-9617-276f8f9ff043",\n  "TopicArn" : "arn:aws:sns:us-east-1:659248683008:jmidkiff_job_results",\n  "Message" : "{\'job_id\': \'2e4dc838-5b44-4051-9041-d72715369ad5\', \'user_email\': \'jmidkiff@uchicago.edu\', \'job_status\': \'COMPLETED\'}",\n  "Timestamp" : "2022-05-23T05:40:51.520Z",\n  "SignatureVersion" : "1",\n  "Signature" : "mClhDTNhjDLQ4Po8DJMjkM5krEXSYuxZHKcNCcwzGeETz0deQTOsXpfSO67Q7fiK0VcUrQg8L1vKfwTaYR0scx5cx6mQZDjWqqTob1ZSEt6+qt6mDTPM/2TqXwbrgYARc4HE8aEXVgGxtwaPQSkPtyco0xbpkuy35hhGe3V8aohnqlw5mHbCFtpkN3aesmC38sKJDoeBVglsrxVxrCKpTk1mgWlduI2G7SkinjWFHgPHcQAoHJRGYzI5MU86VS5ZGL8uYDtssz9RTl0JNF4JoaC9denionCNBtS97hB7hr1HAzXu+wBb0XBUufjKjvjF53TWdYOzlfY2+1mRUhX8rg==",\n  "SigningCertURL" : "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-7ff5318490ec183fbaddaa2a969abfda.pem",\n  "UnsubscribeURL" : "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:659248683008:jmidkiff_job_results:0d92e482-d5be-484c-bb19-910e970e521d"\n}', 
+        'attributes': {
+            'ApproximateReceiveCount': '1', 
+            'SentTimestamp': '1653284451554', 
+            'SenderId': 'AIDAIT2UOQQY3AUEKVGXU', 
+            'ApproximateFirstReceiveTimestamp': '1653284451559'
+        }, 
+        'messageAttributes': {}, 
+        'md5OfBody': '78692382f92ba090c2a207371d5e3a09', 
+        'eventSource': 'aws:sqs', 
+        'eventSourceARN': 'arn:aws:sqs:us-east-1:659248683008:jmidkiff_job_results', 
+        'awsRegion': 'us-east-1'
+    }]
+}

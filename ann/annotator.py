@@ -7,7 +7,7 @@ import ast
 from botocore import exceptions
 from configparser import ConfigParser
 
-CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/ann_config.ini'
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/ann/ann_config.ini'
 s3 = boto3.client('s3')
 dynamodb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
@@ -21,6 +21,7 @@ def request_annotations():
     try: 
         url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
         url_dql = sqs.get_queue_url(QueueName=queue_name_dlq)['QueueUrl']
+        print(f'url: {url}')
     except exceptions.ClientError as e: # Queue Not Found
         code = e.response['Error']['Code']
         if code == 'QueueDoesNotExist': 
@@ -55,6 +56,7 @@ def request_annotations():
             input_file_name = actual_message['input_file_name']['S']
             s3_inputs_bucket = actual_message['s3_inputs_bucket']['S']
             s3_key_input_file = actual_message['s3_key_input_file']['S']
+            user_email = actual_message['user_email']['S']
             new_folders = f'{user_id}/{job_id}'
             print(f'    received {new_folders}')
             
@@ -68,7 +70,7 @@ def request_annotations():
         # Get the input file S3 object and copy it to a local file
         # Dont create directory for each result just append the job to file with ~ separator. Please do update when submitting your next assignment
         try: # Error - Job already exists in S3
-            prefix = f'{config.get('AWS', 'Owner')}/{new_folders}/'
+            prefix = f"{config.get('AWS', 'Owner')}/{new_folders}/"
             response = s3.list_objects_v2(
                 Bucket=config.get('AWS', 'ResultsBucket'), 
                 Prefix=prefix)
@@ -136,13 +138,12 @@ def request_annotations():
         # https://stackoverflow.com/a/4617069/8527838
         with open(f'./{user_id}~{job_id}~stdout.txt', 'w') as std_out, open(f'./{user_id}~{job_id}~stderr.txt', 'w') as std_err: 
             proc = subprocess.Popen(
-                ['python', f'./anntools/hw5_run.py', f"./{new_file}"], 
+                ['python', f'./run.py', f"./{new_file}", user_email], 
                 stdout=std_out, stderr=std_err)
         try: 
             response = sqs.delete_message(
                 QueueUrl=url, 
                 ReceiptHandle=receipt_handle)
-            print(f'response: {response}')
         except exceptions.ClientError as e: 
             code = e.response['Error']['Code']
             if code == 'ReceiptHandleIsInvalid': 

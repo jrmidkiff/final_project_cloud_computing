@@ -10,7 +10,6 @@ __author__ = 'Vas Vasiliadis <vas@uchicago.edu>'
 
 import sys
 import time
-import driver
 import boto3
 import os
 import re
@@ -18,7 +17,10 @@ import shutil
 from botocore import exceptions
 from configparser import ConfigParser
 
-CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/ann_config.ini'
+sys.path.append('/home/ec2-user/mpcs-cc/gas/ann/anntools')
+import driver # From above path
+
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/ann/ann_config.ini'
 
 """A rudimentary timer for coarse-grained profiling
 """
@@ -36,15 +38,12 @@ class Timer(object):
         if self.verbose:
             print(f"Approximate runtime: {self.secs:.2f} seconds")
 
-def main(arg): 
+def main(arg, user_email): 
     with Timer():
         config = ConfigParser()
         config.read_file(open(CONFIG_FILE))
         user_bad, job_id, file_name = arg.split('~')
         dot, user = user_bad.split('/')
-        print(f'user: {user}')
-        print(f'job_id: {job_id}')
-        print(f'file_name: {file_name}')
 
         try: 
             driver.run(arg, 'vcf')
@@ -58,11 +57,11 @@ def main(arg):
         s3 = boto3.client('s3')
         
         d = {}
-        for x in os.listdir(config.get('SYSTEM', 'HomeDirectory'): 
+        for x in os.listdir(config.get('SYSTEM', 'MainDirectory')): 
             if x.startswith(f'{user}~{job_id}'): 
                 if x.endswith('.annot.vcf') or x.endswith('.count.log'): 
                     _, _2, relevant_file = x.split('~')
-                    file_key = f'{config.get('AWS', 'Owner')}/{user}/{job_id}~{relevant_file}'
+                    file_key = f"{config.get('AWS', 'Owner')}/{user}/{job_id}~{relevant_file}"
                     if x.endswith('.annot.vcf'): 
                         d['result_file'] = file_key
                     else: 
@@ -131,23 +130,26 @@ def main(arg):
                 })
                 return None
         except KeyError as e: # Error - Missing Results or Log File
-            print({
-                'code': 500, 
-                'status': 'Server Error', 
-                'message': f'Results File or Log File are missing: {e}'
-            })
+            raise KeyError('500: Results File or Log File are missing') 
+            # print({
+            #     'code': 500, 
+            #     'status': 'Server Error', 
+            #     'message': f' {e}'
+            # })
             return None
         
         sns = boto3.client('sns')
+        message = str({
+            'job_id': job_id, 
+                'user_email': user_email,
+                'job_status': 'COMPLETED'
+            })
+        print(f"publishing message to TopicArn {config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC')}")
+        print(f'    message: {message}')
         try: 
             response = sns.publish(
-                TopicArn=app.config['AWS_SNS_JOB_COMPLETE_TOPIC'],
-                Message=str({
-                    'job_id': job_id, 
-                    'job_status': 'COMPLETED', 
-                    's3_key_result_file': d['result_file'], 
-                    's3_key_log_file': d['log_file']
-                    }) # What is the message here?
+                TopicArn=config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC'),
+                Message=message 
             )
         except exceptions.ClientError as e: # Topic not found
             code = e.response['Error']['Code']
@@ -159,18 +161,18 @@ def main(arg):
                 })
                 return None
             else: 
-                print({
-                    'code': 500, 
-                    'status': 'Server Error', 
-                    'message': f'{e}'
-                })
-                return None
-        
+                    print({
+                        'code': 500, 
+                        'status': 'Server Error', 
+                        'message': f'{e}'
+                    })
+                    return None
+            
         
 if __name__ == '__main__':
     # Call the AnnTools pipeline
     if len(sys.argv) > 1:
-        main(sys.argv[1])
+        main(sys.argv[1], sys.argv[2])
         
     else:
         print("A valid .vcf file must be provided as input to this program.")
