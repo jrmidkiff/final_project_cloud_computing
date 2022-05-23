@@ -29,6 +29,7 @@ import re
 UUID_REGEX = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}'
 dynamodb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
+s3 = boto3.client('s3')
 
 """Start annotation request
 Create the required AWS S3 policy document and render a form for
@@ -167,8 +168,31 @@ def create_annotation_job_request():
 def annotations_list():
 
   # Get list of annotations to display
-  
-  return render_template('annotations.html', annotations=None)
+    try: 
+        response = dynamodb.query(
+            TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
+            IndexName='user_id_index',
+            Select='SPECIFIC_ATTRIBUTES', 
+            ProjectionExpression="job_id, submit_time, input_file_name, job_status", 
+            KeyConditionExpression="user_id = :u", 
+            ExpressionAttributeValues={":u": {
+                "S": session['primary_identity']}}
+        )
+    except ClientError as e: 
+        abort(500)
+    
+    l = []
+    for item in response['Items']:
+        d = {}
+        d['job_id'] = item['job_id']['S']
+        # https://docs.python.org/3/library/time.html#time.localtime
+        d['submit_time'] = time.asctime(time.localtime(float(item['submit_time']['N'])))
+        d['input_file_name'] = item['input_file_name']['S']
+        d['job_status'] = item['job_status']['S']
+        l.append(d)
+    l.reverse() # Faster to append then reverse rather than to insert(0)
+    
+    return render_template('annotations.html', annotations=l)
 
 
 """Display details of a specific annotation job
@@ -176,15 +200,46 @@ def annotations_list():
 @app.route('/annotations/<id>', methods=['GET'])
 @authenticated
 def annotation_details(id):
-  pass
+    response = dynamodb.query(
+        TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
+        Select='ALL_ATTRIBUTES', 
+        KeyConditionExpression="job_id = :j", 
+        ExpressionAttributeValues={":j": {
+            "S": id}}
+    )    
+    if response['Items'] == []: 
+        abort(404)
+    rv = response['Items'][0]
+    if rv['user_id']['S'] != session['primary_identity']: 
+        abort(403)
+    annotation = {}
+    annotation['job_id'] = rv['job_id']['S']
+    annotation['submit_time'] = rv['submit_time']['N']
+    annotation['submit_time'] = time.asctime(time.localtime(float(rv['submit_time']['N'])))
+    annotation['input_file_name'] = rv['input_file_name']['S']
+    annotation['job_status'] = rv['job_status']['S']
+    if annotation['job_status'] == 'COMPLETED': 
+        annotation['complete_time'] = time.asctime(time.localtime(float(rv['complete_time']['N'])))
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
+        try: 
+            response = s3.generate_presigned_url(
+                ClientMethod='get_object', 
+                Params={
+                    'Bucket': app.config["AWS_S3_RESULTS_BUCKET"], 
+                    'Key': rv['s3_key_result_file']['S']}, 
+                ExpiresIn=120)
+        except ClientError as e: 
+            abort(500)
+        annotation['result_file_url'] = response
 
+    return render_template('annotation_details.html', annotation=annotation)
 
 """Display the log file contents for an annotation job
 """
 @app.route('/annotations/<id>/log', methods=['GET'])
 @authenticated
 def annotation_log(id):
-  pass
+    
 
 
 """Subscription management handler
