@@ -144,6 +144,8 @@ def create_annotation_job_request():
     # Send message to request queue
     sns = boto3.client('sns')
     try: 
+        user_email = session['email']
+        dynamo_data['user_email'] = {'S': user_email}
         response = sns.publish(
             TopicArn= app.config['AWS_SNS_JOB_REQUEST_TOPIC'],
             Message=str(dynamo_data)
