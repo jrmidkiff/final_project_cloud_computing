@@ -16,7 +16,7 @@ from datetime import datetime
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.client import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 
 from flask import (abort, flash, redirect, render_template,
   request, session, url_for)
@@ -200,21 +200,21 @@ def annotations_list():
 @app.route('/annotations/<id>', methods=['GET'])
 @authenticated
 def annotation_details(id):
-    response = dynamodb.query(
-        TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
-        Select='ALL_ATTRIBUTES', 
-        KeyConditionExpression="job_id = :j", 
-        ExpressionAttributeValues={":j": {
-            "S": id}}
-    )    
-    if response['Items'] == []: 
+    try: # Get DynamoDB Record
+        response = dynamodb.get_item(
+            TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
+            Key={'job_id': {'S': id}})
+    # https://stackoverflow.com/a/68521788/8527838
+    except dynamodb.exceptions.ResourceNotFoundException: # Error - Table missing
+        abort(500)   
+    try: # Get DynamoDB Record
+        rv = response['Item']
+    except KeyError: # No result
         abort(404)
-    rv = response['Items'][0]
     if rv['user_id']['S'] != session['primary_identity']: 
         abort(403)
     annotation = {}
     annotation['job_id'] = rv['job_id']['S']
-    annotation['submit_time'] = rv['submit_time']['N']
     annotation['submit_time'] = time.asctime(time.localtime(float(rv['submit_time']['N'])))
     annotation['input_file_name'] = rv['input_file_name']['S']
     annotation['job_status'] = rv['job_status']['S']
@@ -231,15 +231,33 @@ def annotation_details(id):
         except ClientError as e: 
             abort(500)
         annotation['result_file_url'] = response
-
+        annotation['s3_key_log_file'] = rv['s3_key_log_file']['S']
+        
     return render_template('annotation_details.html', annotation=annotation)
 
 """Display the log file contents for an annotation job
 """
+# https://flask.palletsprojects.com/en/2.1.x/quickstart/
 @app.route('/annotations/<id>/log', methods=['GET'])
 @authenticated
 def annotation_log(id):
-    
+    s3_key_log_file = request.args.get('s3_key_log_file')
+    try: 
+        response = s3.get_object(
+            Bucket=app.config['AWS_S3_RESULTS_BUCKET'],
+            Key=s3_key_log_file)
+    except ClientError as e: 
+        code = e.response['Error']['Code']
+        if code == 'NoSuchKey' or code == 'NoSuchBucket': 
+            abort(404)
+        else: 
+            abort(500)
+    except ParamValidationError as e: 
+        abort(404)
+
+    log_file_contents = response['Body'].read().decode()
+
+    return render_template('view_log.html', job_id=id, log_file_contents=log_file_contents) # log_file_contents)
 
 
 """Subscription management handler

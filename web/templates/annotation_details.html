@@ -29,7 +29,7 @@ University of Chicago
       {% elif 'result_file_url' in annotation %}
         <a href="{{ annotation['result_file_url'] }}">download</a><br />
       {% endif %}
-      <strong>Annotation Log File</strong>: <a href="{{ url_for('annotation_log', id=annotation['job_id'])}}">view</a><br />
+      <strong>Annotation Log File</strong>: <a href="{{ url_for('annotation_log', id=annotation['job_id'], s3_key_log_file=annotation['s3_key_log_file'])}}">view</a><br />
       {% endif %}
     </p>
 
