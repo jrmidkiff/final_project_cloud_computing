@@ -15,10 +15,21 @@ sys.path.insert(1, os.path.realpath(os.path.pardir))
 import helpers
 
 # Get configuration
-from configparser import SafeConfigParser
-config = SafeConfigParser(os.environ)
-config.read('notify_config.ini')
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/archive/archive_config.ini'
+s3 = boto3.client('s3')
+dynamodb = boto3.client('dynamodb')
+sqs = boto3.client('sqs')
+config = ConfigParser()
+config.read_file(open(CONFIG_FILE))
 
 # Add utility code here
+# sqs.receive_message here
 
+s3.copy(
+    CopySource={
+        'Bucket': config.get('aws', 'ResultsBucket'), 
+        'Key': ''
+    }, 
+    Bucket=config.get('aws', 'S3GlacierBucketName'), 
+    Key='')
 ### EOF

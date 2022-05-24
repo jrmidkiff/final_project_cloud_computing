@@ -45,7 +45,7 @@ def main(arg, user_email):
         user_bad, job_id, file_name = arg.split('~')
         dot, user = user_bad.split('/')
 
-        try: 
+        try: # Run driver
             driver.run(arg, 'vcf')
         except FileNotFoundError: 
             print({
@@ -97,14 +97,10 @@ def main(arg, user_email):
                 os.remove(x)   
                 
         dynamodb = boto3.client('dynamodb')
-        try: 
+        try: # Update DynamoDB record
             dynamodb.update_item(
                 TableName=config.get('AWS', 'DynamoDBTable'), 
-                Key={
-                    'job_id': {
-                        'S': job_id
-                    }
-                }, 
+                Key={'job_id': {'S': job_id}}, 
                 ExpressionAttributeValues={
                     ':cp': {'S': 'COMPLETED'}, 
                     ':re': {'S': d['result_file']}, 
@@ -146,7 +142,7 @@ def main(arg, user_email):
             })
         print(f"publishing message to TopicArn {config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC')}")
         print(f'    message: {message}')
-        try: 
+        try: # Publish SNS message
             response = sns.publish(
                 TopicArn=config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC'),
                 Message=message 
@@ -167,8 +163,12 @@ def main(arg, user_email):
                         'message': f'{e}'
                     })
                     return None
-            
-        
+
+        sqs = boto3.client('sqs')
+        sqs.send_message(
+            QueueUrl=config.get('AWS', 'SQSArchiveQueueUrl'), # Default queue delay is 5 minutes
+            MessageBody=str({'s3_key_result_file': d['result_file']}
+        )
 if __name__ == '__main__':
     # Call the AnnTools pipeline
     if len(sys.argv) > 1:

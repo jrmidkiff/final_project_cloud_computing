@@ -59,7 +59,6 @@ def request_annotations():
             user_email = actual_message['user_email']['S']
             new_folders = f'{user_id}/{job_id}'
             print(f'    received {new_folders}')
-            
         except KeyError: 
             print({
                 'code': 400, 
@@ -83,7 +82,7 @@ def request_annotations():
         except KeyError: 
             pass
             
-        try: 
+        try: # Download S3 file
             new_file = f"{user_id}~{job_id}~{input_file_name}"
             response = s3.download_file(
                 Bucket=s3_inputs_bucket, 
@@ -105,7 +104,7 @@ def request_annotations():
                 })
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Client.update_item
         # https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html#Expressions.UpdateExpressions.SET
-        try: 
+        try: # Update DynamoDB Record
             dynamodb.update_item(
                 TableName=config.get('AWS', 'DynamoDBTable'), 
                 Key={
@@ -134,13 +133,12 @@ def request_annotations():
                     'status': 'Server Error', 
                     'message': f'An error occurred: {e}',
                 })   
-        # Can I do error catching to change the DynamoDB status?
         # https://stackoverflow.com/a/4617069/8527838
         with open(f'./{user_id}~{job_id}~stdout.txt', 'w') as std_out, open(f'./{user_id}~{job_id}~stderr.txt', 'w') as std_err: 
             proc = subprocess.Popen(
                 ['python', f'./run.py', f"./{new_file}", user_email], 
                 stdout=std_out, stderr=std_err)
-        try: 
+        try: # Delete message from SQS queue
             response = sqs.delete_message(
                 QueueUrl=url, 
                 ReceiptHandle=receipt_handle)
