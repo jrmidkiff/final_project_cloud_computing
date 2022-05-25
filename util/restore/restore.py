@@ -110,7 +110,7 @@ def initiate_job(id, tier='Expedited'):
             }
         )
         print(f"    initiating {tier} job with jobId {response['jobId']}\n       ArchivalId: {id}")
-    except glacier.exceptions.InsufficientCapacityException or glacier.exceptions.InsufficientCapacityException: 
+    except glacier.exceptions.InsufficientCapacityException: 
         initiate_job(id, tier='Standard')        
 
 

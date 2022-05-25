@@ -21,7 +21,7 @@ def request_annotations():
     try: 
         url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
         url_dql = sqs.get_queue_url(QueueName=queue_name_dlq)['QueueUrl']
-        print(f'url: {url}')
+        # print(f'url: {url}')
     except exceptions.ClientError as e: # Queue Not Found
         code = e.response['Error']['Code']
         if code == 'QueueDoesNotExist': 
@@ -37,8 +37,8 @@ def request_annotations():
                 'message': f'An error occurred: {e}'
             })  
 
+    print('... checking for messages ...')
     while True: # Continuous loop for checking for messages
-        print('Checking for messages')
         response = sqs.receive_message(
             QueueUrl=url, AttributeNames=['All'], MaxNumberOfMessages=1, 
             WaitTimeSeconds=20, VisibilityTimeout=30)
