@@ -29,77 +29,90 @@ sqs = boto3.client('sqs')
 glacier = boto3.client('glacier')
 
 # Add utility code here
-while True: 
-    # Need to destroy messages if the user is currently premium_user
+def main(): 
     print('... checking for files to move to glacier ...')
-    response = sqs.receive_message(
-        QueueUrl=config.get('aws', 'SQSArchiveQueueUrl'), 
-        MaxNumberOfMessages=1, 
-        WaitTimeSeconds=20)
-    try:  # Receive message
-        message = response['Messages'][0]
-        message_body = message['Body']
-        receipt_handle = message['ReceiptHandle']
-    except KeyError: # No messages in queue
-        continue
-    actual_message = ast.literal_eval(message_body)
-    try: 
-        job_id = actual_message['job_id']
-        s3_key_result_file = actual_message['s3_key_result_file']
-    except KeyError: 
-        print(f'KeyError!')
-        continue
-    print(f'Received job_id: {job_id}, s3_key_result_file: {s3_key_result_file}')
+    while True: 
+        # Messages will not appear in this queue if the user was premium_user
+        # at the time of job running, see run.py
+        # But they do need to be deleted if the user upgraded within 5 minute interval
+        response = sqs.receive_message(
+            QueueUrl=config.get('aws', 'SQSArchiveQueueUrl'), 
+            MaxNumberOfMessages=1, 
+            WaitTimeSeconds=20)
+        try:  # Receive message
+            message = response['Messages'][0]
+            message_body = message['Body']
+            receipt_handle = message['ReceiptHandle']
+        except KeyError: # No messages in queue
+            continue
+        actual_message = ast.literal_eval(message_body)
+        try: 
+            user_id = actual_message['user_id']
+            job_id = actual_message['job_id']
+            s3_key_result_file = actual_message['s3_key_result_file']
+        except KeyError: 
+            print(f'KeyError!')
+            continue
+        print(f'Received job_id: {job_id}, s3_key_result_file: {s3_key_result_file}')
+        
+        _, _, _, _, role, _, _ = helpers.get_user_profile(id=user_id) # Shitty utility return value
+        if role == 'premium_user': 
+            print(f'    user became a premium_user before archival, deleting archive message')
+            delete_message(receipt_handle)
+            continue
 
-    try: # Get S3 results file
-        response = s3.get_object(
-            Bucket=config.get('aws', 'ResultsBucket'),
-            Key=s3_key_result_file)
-        obj = response['Body'].read()
-    except exceptions.ClientError as e: 
-        print(f"{e}\nBucket:{config.get('aws', 'ResultsBucket')}\nKey:{s3_key_result_file}")
-        continue
-    
-    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html#Glacier.Client.upload_archive
-    response = glacier.upload_archive(
-        vaultName=config.get('aws', 'S3GlacierBucketName'),
-        body = obj)
-    location, archive_id = response['location'], response['archiveId']
-    
-    try: # Update dynamodb with Glacier Archive Id                 
-        dynamodb.update_item(
-            TableName=config.get('aws', 'DynamoDBTable'), 
-            Key={'job_id': {'S': job_id}}, 
-            ExpressionAttributeValues={
-                ':id': {'S': archive_id}
-            }, 
-            UpdateExpression='SET results_file_archive_id = :id REMOVE s3_key_result_file'
-        )
-    except exceptions.ClientError as e: # Error - Table does not exist
-        code = e.response['Error']['Code']
-        if code == 'ResourceNotFoundexception': 
-            print({
-                'code': 404, 
-                'status': 'Not Found', 
-                'message': f'ResourceNotFoundException: {e}'
-            })
+        try: # Get S3 results file
+            response = s3.get_object(
+                Bucket=config.get('aws', 'ResultsBucket'),
+                Key=s3_key_result_file)
+            obj = response['Body'].read()
+        except exceptions.ClientError as e: 
+            print(f"{e}\nBucket:{config.get('aws', 'ResultsBucket')}\nKey:{s3_key_result_file}")
             continue
-        else: 
-            print({
-                'code': 500, 
-                'status': 'Server Error', 
-                'message': f'{e}'
-            })
+        
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html#Glacier.Client.upload_archive
+        response = glacier.upload_archive(
+            vaultName=config.get('aws', 'S3GlacierBucketName'),
+            body = obj)
+        location, archive_id = response['location'], response['archiveId']
+        
+        try: # Update dynamodb with Glacier Archive Id                 
+            dynamodb.update_item(
+                TableName=config.get('aws', 'DynamoDBTable'), 
+                Key={'job_id': {'S': job_id}}, 
+                ExpressionAttributeValues={
+                    ':id': {'S': archive_id}
+                }, 
+                UpdateExpression='SET results_file_archive_id = :id REMOVE s3_key_result_file'
+            )
+        except exceptions.ClientError as e: # Error - Table does not exist
+            code = e.response['Error']['Code']
+            if code == 'ResourceNotFoundexception': 
+                print({
+                    'code': 404, 
+                    'status': 'Not Found', 
+                    'message': f'ResourceNotFoundException: {e}'
+                })
+                continue
+            else: 
+                print({
+                    'code': 500, 
+                    'status': 'Server Error', 
+                    'message': f'{e}'
+                })
+                continue
+        
+        try: # Remove results file from S3
+            s3.delete_object(
+                Bucket=config.get('aws', 'ResultsBucket'),
+                Key=s3_key_result_file)
+        except exceptions.ClientError as e: 
+            print(f"{e}\nBucket:{config.get('aws', 'ResultsBucket')}\nKey:{s3_key_result_file}")
             continue
-    
-    try: # Remove results file from S3
-        s3.delete_object(
-            Bucket=config.get('aws', 'ResultsBucket'),
-            Key=s3_key_result_file)
-    except exceptions.ClientError as e: 
-        print(f"{e}\nBucket:{config.get('aws', 'ResultsBucket')}\nKey:{s3_key_result_file}")
-        continue
-    
+        
+        delete_message(receipt_handle)
+
+def delete_message(receipt_handle): 
     try: # Delete message from SQS queue
         response = sqs.delete_message(
             QueueUrl=config.get('aws', 'SQSArchiveQueueUrl'), 
@@ -117,8 +130,8 @@ while True:
                 'code': 500, 
                 'status': 'Server Error', 
                 'message': f'An error occurred: {e}',
-            })  
-        continue 
+            })   
 
-
+if __name__ == '__main__': 
+    main()
     # ### EOF

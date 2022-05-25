@@ -9,21 +9,28 @@ __author__ = 'Vas Vasiliadis <vas@uchicago.edu>'
 
 import os
 import sys
+import boto3
+import ast
+from botocore import exceptions
+from configparser import ConfigParser
 
 # Import utility helpers
 sys.path.insert(1, os.path.realpath(os.path.pardir))
 import helpers
 
 # Get configuration
-CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/archive/restore_config.ini'
+CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/util/restore/restore_config.ini'
 config = ConfigParser()
 config.read_file(open(CONFIG_FILE))
+
+dynamodb = boto3.client('dynamodb')
+sqs = boto3.client('sqs')
 glacier = boto3.client('glacier')
 
 # Add utility code here
 def main(): 
+    print('... checking for users to thaw ...')
     while True: 
-        print('... checking for users to thaw ...')
         response = sqs.receive_message(
             QueueUrl=config.get('aws', 'SQSRestoreQueueUrl'), 
             MaxNumberOfMessages=1, 
@@ -41,11 +48,19 @@ def main():
         except KeyError: 
             print(f'KeyError!')
             continue
-        print(f"Received request to restore all of {user_id}'s files")
-        archive_ids = get_archive_ids(user_id)
-        for id in archive_ids: 
-            initiate_job()
-        
+        _, _, _, _, role, _, _ = helpers.get_user_profile(id=user_id) # Shitty utility return value
+        print(f'user_id: {user_id}, role: {role}')
+        if role == 'premium_user': 
+            print(f"Received request to restore all of premium_user {user_id}'s files")
+            archive_ids = get_archive_ids(user_id)
+            for item in archive_ids: 
+                id = item['results_file_archive_id']['S']
+                initiate_job(id=id)
+        elif role == 'free_user': 
+            print(f'User was actually a free_user')
+        else: 
+            print(f'Error: 500, non-standard role value')
+
         try: # Delete message from SQS queue
             response = sqs.delete_message(
                 QueueUrl=config.get('aws', 'SQSRestoreQueueUrl'), 
@@ -88,18 +103,13 @@ def initiate_job(id, tier='Expedited'):
         response = glacier.initiate_job( # Initiate job to retrieve from glacier
             vaultName=config.get('aws', 'S3GlacierBucketName'), 
             jobParameters={
-                Type='archive-retrieval',
-                ArchiveId=id, 
-                SNSTopic=config.get('aws', 'SNSThawTopicARN'), 
-                Tier=tier, 
-                Outputlocation={
-                    'S3': {
-                        'BucketName': config.get('aws', 'ResultsBucket')
-                    }
-                }
+                'Type': 'archive-retrieval',
+                'ArchiveId': id, 
+                'SNSTopic': config.get('aws', 'SNSThawTopicARN'), 
+                'Tier': tier
             }
         )
-        print(f"    initiating {tier} job with jobId {response['jobId']}")
+        print(f"    initiating {tier} job with jobId {response['jobId']}\n       ArchivalId: {id}")
     except glacier.exceptions.InsufficientCapacityException or glacier.exceptions.InsufficientCapacityException: 
         initiate_job(id, tier='Standard')        
 
