@@ -20,6 +20,11 @@ sys.path.append('/home/ec2-user/mpcs-cc/gas/ann/anntools')
 import driver # From above path
 
 CONFIG_FILE = '/home/ec2-user/mpcs-cc/gas/ann/ann_config.ini'
+config = ConfigParser()
+config.read_file(open(CONFIG_FILE))
+
+sys.path.insert(1, config.get('SYSTEM', 'HelpersModuleFilePath'))
+import helpers
 
 """A rudimentary timer for coarse-grained profiling
 """
@@ -39,11 +44,8 @@ class Timer(object):
 
 def main(arg, user_email): 
     with Timer():
-        config = ConfigParser()
-        config.read_file(open(CONFIG_FILE))
         user_bad, job_id, file_name = arg.split('~')
         dot, user = user_bad.split('/')
-
         try: # Run driver
             driver.run(arg, 'vcf')
         except FileNotFoundError: 
@@ -162,13 +164,19 @@ def main(arg, user_email):
                     })
                     return None
 
-        sqs = boto3.client('sqs')
-        sqs.send_message(
-            QueueUrl=config.get('AWS', 'SQSArchiveQueueUrl'), # Default queue delay is 5 minutes
-            MessageBody=str({
-                'job_id': job_id, 
-                's3_key_result_file': d['result_file']})
-        )
+        _, _, _, _, role, _, _ = helpers.get_user_profile(id=user) # Shitty utility return value
+        if role == 'free_user': 
+            print(f'    Sending message to archive results for free_user')
+            sqs = boto3.client('sqs')
+            sqs.send_message(
+                QueueUrl=config.get('AWS', 'SQSArchiveQueueUrl'), # Default queue delay is 5 minutes
+                MessageBody=str({
+                    'user_id': user, 
+                    'job_id': job_id, 
+                    's3_key_result_file': d['result_file']})
+            )
+        else: 
+            print(f'    Not archiving results for premium_user')
 if __name__ == '__main__':
     # Call the AnnTools pipeline
     if len(sys.argv) > 1:
