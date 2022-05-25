@@ -171,7 +171,7 @@ def annotations_list():
     try: 
         response = dynamodb.query(
             TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
-            IndexName='user_id_index',
+            IndexName=app.config['DynamoDBIndex'],
             Select='SPECIFIC_ATTRIBUTES', 
             ProjectionExpression="job_id, submit_time, input_file_name, job_status", 
             KeyConditionExpression="user_id = :u", 
@@ -218,22 +218,31 @@ def annotation_details(id):
     annotation['submit_time'] = time.asctime(time.localtime(float(rv['submit_time']['N'])))
     annotation['input_file_name'] = rv['input_file_name']['S']
     annotation['job_status'] = rv['job_status']['S']
+    free_access_expired = False
     if annotation['job_status'] == 'COMPLETED': 
-        annotation['complete_time'] = time.asctime(time.localtime(float(rv['complete_time']['N'])))
+        complete_time = float(rv['complete_time']['N'])
+        annotation['complete_time'] = time.asctime(time.gmtime(complete_time))
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
-        try: 
-            response = s3.generate_presigned_url(
-                ClientMethod='get_object', 
-                Params={
-                    'Bucket': app.config["AWS_S3_RESULTS_BUCKET"], 
-                    'Key': rv['s3_key_result_file']['S']}, 
-                ExpiresIn=120)
-        except ClientError as e: 
-            abort(500)
-        annotation['result_file_url'] = response
+        if time.time() - complete_time < app.config['FREE_USER_DATA_RETENTION'] or session['role'] == 'premium_user': 
+            try: # Download results file to user
+                response = s3.generate_presigned_url(
+                    ClientMethod='get_object', 
+                    Params={
+                        'Bucket': app.config["AWS_S3_RESULTS_BUCKET"], 
+                        'Key': rv['s3_key_result_file']['S']}, 
+                    ExpiresIn=120)
+            except ClientError as e: 
+                abort(500)
+            annotation['result_file_url'] = response
+        else:             
+            free_access_expired = True
         annotation['s3_key_log_file'] = rv['s3_key_log_file']['S']
-        
-    return render_template('annotation_details.html', annotation=annotation)
+    print(f'free_access_expired: {free_access_expired}')
+    print(f'session["primary_identity"]: {session["primary_identity"]}')
+    print(f"session['role']: {session['role']}")
+    
+    return render_template('annotation_details.html', 
+        annotation=annotation, free_access_expired=free_access_expired)
 
 """Display the log file contents for an annotation job
 """
@@ -265,32 +274,38 @@ def annotation_log(id):
 @app.route('/subscribe', methods=['GET', 'POST'])
 @authenticated
 def subscribe():
-  if (request.method == 'GET'):
-    # Display form to get subscriber credit card info
-    if (session.get('role') == "free_user"):
-      return render_template('subscribe.html')
-    else:
-      return redirect(url_for('profile'))
+    if (request.method == 'GET'):
+        # Display form to get subscriber credit card info
+        if (session.get('role') == "free_user"):
+            return render_template('subscribe.html')
+        else:
+            return redirect(url_for('profile'))
 
-  elif (request.method == 'POST'):
-    # Update user role to allow access to paid features
-    update_profile(
-      identity_id=session['primary_identity'],
-      role="premium_user"
-    )
+    elif (request.method == 'POST'):
+        # Update user role to allow access to paid features
+        update_profile(
+            identity_id=session['primary_identity'],
+            role="premium_user")
 
-    # Update role in the session
-    session['role'] = "premium_user"
+        # Update role in the session
+        session['role'] = "premium_user"
 
-    # Request restoration of the user's data from Glacier
-    # Add code here to initiate restoration of archived user data
-    # Make sure you handle files not yet archived!
+        # Request restoration of the user's data from Glacier
+        # Add code here to initiate restoration of archived user data
+        # Make sure you handle files not yet archived!
+        sqs.send_message( 
+            QueueUrl=app.config['AWS_SQS_RESTORE_QUEUE_URL'], 
+            MessageBody=str({
+                'user_id': session['primary_identity']})
+        )
+        print("sent message to restore from glacier to s3 all of user's files")
 
     # Display confirmation page
     return render_template('subscribe_confirm.html') 
 
 """Reset subscription
 """
+# MUST MAKE CHANGES THAT RE-ARCHIVE ALL OF A USER'S NON-ARCHIVED FILES IF THEY REVERT TO FREE
 @app.route('/unsubscribe', methods=['GET'])
 @authenticated
 def unsubscribe():
