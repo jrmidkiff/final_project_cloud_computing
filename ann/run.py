@@ -166,7 +166,6 @@ def main(arg, user_email):
 
         _, _, _, _, role, _, _ = helpers.get_user_profile(id=user) # Shitty utility return value
         if role == 'free_user': 
-            print(f'    Sending message to archive results for free_user')
             sqs = boto3.client('sqs')
             sqs.send_message(
                 QueueUrl=config.get('AWS', 'SQSArchiveQueueUrl'), # Default queue delay is 5 minutes
@@ -176,7 +175,7 @@ def main(arg, user_email):
                     's3_key_result_file': d['result_file']})
             )
         else: 
-            print(f'    Not archiving results for premium_user')
+            pass
 if __name__ == '__main__':
     # Call the AnnTools pipeline
     if len(sys.argv) > 1:
