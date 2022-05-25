@@ -51,13 +51,10 @@ def main():
             job_id = actual_message['job_id']
             s3_key_result_file = actual_message['s3_key_result_file']
         except KeyError: 
-            print(f'KeyError!')
             continue
-        print(f'Received job_id: {job_id}, s3_key_result_file: {s3_key_result_file}')
-        
+                
         _, _, _, _, role, _, _ = helpers.get_user_profile(id=user_id) # Shitty utility return value
         if role == 'premium_user': 
-            print(f'    user became a premium_user before archival, deleting archive message')
             delete_message(receipt_handle)
             continue
 
