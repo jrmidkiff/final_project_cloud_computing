@@ -241,9 +241,6 @@ def annotation_details(id):
                 abort(500)
             annotation['result_file_url'] = response
         annotation['s3_key_log_file'] = rv['s3_key_log_file']['S']
-    print(f'free_access_expired: {free_access_expired}')
-    print(f'session["primary_identity"]: {session["primary_identity"]}')
-    print(f"session['role']: {session['role']}")
     
     return render_template('annotation_details.html', 
         annotation=annotation, free_access_expired=free_access_expired)
@@ -302,7 +299,6 @@ def subscribe():
             MessageBody=str({
                 'user_id': session['primary_identity']})
         )
-        print("sent message to restore from glacier to s3 all of user's files")
 
     # Display confirmation page
     return render_template('subscribe_confirm.html') 
