@@ -13,7 +13,6 @@ import time
 import boto3
 import os
 import re
-import shutil
 from botocore import exceptions
 from configparser import ConfigParser
 
@@ -140,8 +139,7 @@ def main(arg, user_email):
                 'user_email': user_email,
                 'job_status': 'COMPLETED'
             })
-        print(f"publishing message to TopicArn {config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC')}")
-        print(f'    message: {message}')
+
         try: # Publish SNS message
             response = sns.publish(
                 TopicArn=config.get('AWS', 'AWS_SNS_JOB_COMPLETE_TOPIC'),
@@ -167,7 +165,9 @@ def main(arg, user_email):
         sqs = boto3.client('sqs')
         sqs.send_message(
             QueueUrl=config.get('AWS', 'SQSArchiveQueueUrl'), # Default queue delay is 5 minutes
-            MessageBody=str({'s3_key_result_file': d['result_file']}
+            MessageBody=str({
+                'job_id': job_id, 
+                's3_key_result_file': d['result_file']})
         )
 if __name__ == '__main__':
     # Call the AnnTools pipeline
