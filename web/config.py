@@ -98,12 +98,16 @@ class Config(object):
 
   # Change the table name to your own
   AWS_DYNAMODB_ANNOTATIONS_TABLE = "jmidkiff_annotations"
+  DynamoDBIndex = "user_id_index"
 
   # Change the email address to your username
   MAIL_DEFAULT_SENDER = "jmidkiff@mpcs-cc.com"
 
   # Time before free user results are archived (in seconds)
   FREE_USER_DATA_RETENTION = 300
+
+  # SQS
+  AWS_SQS_RESTORE_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/659248683008/jmidkiff_restore"
 
 class DevelopmentConfig(Config):
   DEBUG = True
