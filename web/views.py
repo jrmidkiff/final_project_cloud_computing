@@ -171,7 +171,7 @@ def annotations_list():
     try: 
         response = dynamodb.query(
             TableName=app.config['AWS_DYNAMODB_ANNOTATIONS_TABLE'], 
-            IndexName=app.config['DynamoDBIndex'],
+            IndexName="user_id_index",
             Select='SPECIFIC_ATTRIBUTES', 
             ProjectionExpression="job_id, submit_time, input_file_name, job_status", 
             KeyConditionExpression="user_id = :u", 
@@ -219,11 +219,17 @@ def annotation_details(id):
     annotation['input_file_name'] = rv['input_file_name']['S']
     annotation['job_status'] = rv['job_status']['S']
     free_access_expired = False
+    restore_message = False
     if annotation['job_status'] == 'COMPLETED': 
         complete_time = float(rv['complete_time']['N'])
         annotation['complete_time'] = time.asctime(time.gmtime(complete_time))
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
-        if time.time() - complete_time < app.config['FREE_USER_DATA_RETENTION'] or session['role'] == 'premium_user': 
+        if (time.time() - complete_time >= app.config['FREE_USER_DATA_RETENTION']) and session['role'] == 'free_user':             
+            free_access_expired = True
+        elif 's3_key_result_file' not in rv.keys(): # Files are being unarchived
+            restore_message = True
+            annotation['restore_message'] = "This file is currently being unarchived from deep storage and should be available within several hours after conversion to premium plan. Please check back later."
+        else:  
             try: # Download results file to user
                 response = s3.generate_presigned_url(
                     ClientMethod='get_object', 
@@ -234,8 +240,6 @@ def annotation_details(id):
             except ClientError as e: 
                 abort(500)
             annotation['result_file_url'] = response
-        else:             
-            free_access_expired = True
         annotation['s3_key_log_file'] = rv['s3_key_log_file']['S']
     print(f'free_access_expired: {free_access_expired}')
     print(f'session["primary_identity"]: {session["primary_identity"]}')

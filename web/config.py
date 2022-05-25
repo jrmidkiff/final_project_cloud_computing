@@ -98,7 +98,7 @@ class Config(object):
 
   # Change the table name to your own
   AWS_DYNAMODB_ANNOTATIONS_TABLE = "jmidkiff_annotations"
-  DynamoDBIndex = "user_id_index"
+  DynamoDBIndex = "user_id_index" # Doesn't work?
 
   # Change the email address to your username
   MAIL_DEFAULT_SENDER = "jmidkiff@mpcs-cc.com"
