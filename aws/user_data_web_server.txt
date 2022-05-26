@@ -4,4 +4,6 @@ unzip /home/ec2-user/mpcs-cc/gas_web_server.zip -d /home/ec2-user/mpcs-cc
 chown -R ec2-user:ec2-user /home/ec2-user/mpcs-cc/gas/
 aws s3 cp s3://mpcs-cc-resources/ssl/privkey.pem /home/ec2-user/mpcs-cc
 aws s3 cp s3://mpcs-cc-resources/ssl/fullchain.pem /home/ec2-user/mpcs-cc
+source /home/ec2-user/mpcs-cc/bin/activate
+source /home/ec2-user/mpcs-cc/gas/web/.env
 sudo -u ec2-user /home/ec2-user/mpcs-cc/gas/web/run_gas.sh
