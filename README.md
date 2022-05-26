@@ -39,4 +39,7 @@ Directory contents are as follows:
 
 ## Additional Notes: 
 * I included the `anntools` repository at `/home/ec2-user/mpcs-cc/gas/ann/anntools` in order for `ann/run.py` to work. 
-* 
+* Things I would do if I had more time before the deadline: 
+    * Perform auto-scaling exercises with `Locust`
+    * Change error-handling to write to logs
+    * Increase use of functions (more like how I wrote `thaw.py` rather than how I wrote `restore.py`)
