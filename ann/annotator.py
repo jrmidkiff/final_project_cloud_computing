@@ -13,6 +13,7 @@ dynamodb = boto3.client('dynamodb')
 sqs = boto3.client('sqs')
 
 def request_annotations():
+    # https://docs.python.org/3/library/configparser.html
     config = ConfigParser()
     config.read_file(open(CONFIG_FILE))
     
@@ -21,7 +22,6 @@ def request_annotations():
     try: 
         url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
         url_dql = sqs.get_queue_url(QueueName=queue_name_dlq)['QueueUrl']
-        # print(f'url: {url}')
     except exceptions.ClientError as e: # Queue Not Found
         code = e.response['Error']['Code']
         if code == 'QueueDoesNotExist': 
@@ -67,7 +67,6 @@ def request_annotations():
             })
 
         # Get the input file S3 object and copy it to a local file
-        # Dont create directory for each result just append the job to file with ~ separator. Please do update when submitting your next assignment
         try: # Error - Job already exists in S3
             prefix = f"{config.get('AWS', 'Owner')}/{new_folders}/"
             response = s3.list_objects_v2(

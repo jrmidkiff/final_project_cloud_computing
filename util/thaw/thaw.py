@@ -72,6 +72,7 @@ def receive_message():
         return ast.literal_eval(message_body), receipt_handle
 
 def get_job_output(JobId): 
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html#Glacier.Client.get_job_output
     response = glacier.get_job_output(
         vaultName=config.get('aws', 'S3GlacierBucketName'),
         jobId=JobId)

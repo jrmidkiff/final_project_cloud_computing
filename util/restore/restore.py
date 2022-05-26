@@ -49,15 +49,13 @@ def main():
             print(f'KeyError!')
             continue
         _, _, _, _, role, _, _ = helpers.get_user_profile(id=user_id) # Shitty utility return value
-        print(f'user_id: {user_id}, role: {role}')
         if role == 'premium_user': 
-            print(f"Received request to restore all of premium_user {user_id}'s files")
             archive_ids = get_archive_ids(user_id)
             for item in archive_ids: 
                 id = item['results_file_archive_id']['S']
                 initiate_job(id=id)
         elif role == 'free_user': 
-            print(f'User was actually a free_user')
+            pass
         else: 
             print(f'Error: 500, non-standard role value')
 
@@ -100,6 +98,7 @@ def get_archive_ids(user_id):
 
 def initiate_job(id, tier='Expedited'): 
     try: 
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html#Glacier.Client.initiate_job
         response = glacier.initiate_job( # Initiate job to retrieve from glacier
             vaultName=config.get('aws', 'S3GlacierBucketName'), 
             jobParameters={
