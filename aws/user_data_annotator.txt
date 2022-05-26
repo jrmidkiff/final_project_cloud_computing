@@ -2,4 +2,5 @@
 aws s3 cp s3://mpcs-cc-students/jmidkiff/gas_annotator.zip /home/ec2-user/mpcs-cc
 unzip /home/ec2-user/mpcs-cc/gas_annotator.zip -d /home/ec2-user/mpcs-cc
 chown -R ec2-user:ec2-user /home/ec2-user/mpcs-cc/gas/
+source /home/ec2-user/mpcs-cc/bin/activate
 sudo -u ec2-user /home/ec2-user/mpcs-cc/gas/ann/run_ann.sh
