@@ -111,6 +111,9 @@ Things come back up but don't function correctly afterward. -8 pts
 I see code to do all of this if the jobs got running correctly.
 
 - [x] Using scan() on DynamoDB table [-3 points per occurrence]
+
+(Not taking points off as I already did so for this in the other section.)
+
 - [ ] Unhealthy target instance(s) in ELB [-5 points]
 - [ ] EC2 instances tagged incorrectly/untagged [-1 point per instance]
 - [ ] Security group includes unnecessary open port(s) [-1 point per occurence]
@@ -161,4 +164,4 @@ General
 
 Bonus points: 3
 
-Grade: 119/145
+Grade: 122/145
