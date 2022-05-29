@@ -1,0 +1,164 @@
+Capstone Project Grading
+Grader: Lionel
+
+2. [7/9 points] Migrate and update existing code
+- [x] Existing code not working (see error(s) below) [-2 points]
+- [ ] Unauthenticated user can upload jobs or take actions [-4 points]
+- [ ] Queue names, bucket names and other constants are not in config: -1 point
+  per occurrence to a max of -5.
+- [ ] BONUS: If checking for a max file size when uploading a job, +3 points.
+
+I'm not seeing any annotation jobs go back the 'pending' state.
+
+3. [8/16 points] Add mechanisms for handling notification of annotation jobs
+- [x] Job completion email not received [-5 points]
+
+I never received an email notification for my jobs. I see the lambda function in
+AWS but it doesn't seem to be getting invoked.
+
+- [ ] No SNS topic for job results [-1 point]
+- [ ] No SQS queue for job results [-1 point]
+- [ ] SNS message is published before DyanmoDB is updated [-3 points]
+- [ ] Lambda function not work or does not listen to the appropriate SQS queue [-3 points]
+- [x] Lambda function does not handle more than one SQS message per invocation [-3] points
+
+Your lambda function grabs event["Records"][0] rather than looping over each
+record received.
+
+4. [9/6 points] Display a list of all the user’s jobs
+- [ ] /annotations fails to display job list [-5 points]
+- [ ] Job listing does not link to the job details page [-3 points]
+- [x] BONUS: Dates are displayed in the user's local timezone [+3 points]
+
+5. [6/6 points] Display job details
+- [ ] /annotations/<job_id> fails to display job details [-6 points]
+- [ ] Job status not displayed (or incorrect) [-2 points]
+- [ ] Job start date/time not displayed [-1 point]
+- [ ] Job end date/time not displayed [-1 point]
+- [ ] No link to results file displayed [-1 point]
+- [ ] No link to log file displayed [-1 point]
+- [ ] Not checking if requested job belongs to currently authenticated user [-2 points]
+
+6. [8/8 points] Provide a means for users to download results and view log files
+- [ ] Results file link not working/downloading [-3 points]
+- [ ] Log file link not displaying log file [-3 points]
+- [x] Using unsigned (public) URL for job results [-3 points]
+
+It's hard to evaluate this as the files never go past the 'PENDING' stage, but I
+see code for generating a signed download URL.
+
+7. [30/30 points] Archive Free user data to Glacier
+- [ ] User able to download results file after 5+ minutes [-5 points]
+- [ ] No "upgrade to premium" link displayed after 5+ minutes [-2 points]
+- [ ] Unable to view log file after 5+ minutes [-2 points]
+- [ ] No Glacier archive ID stored in DynamoDB for archived results [-5 points]
+- [ ] Results file still exists on S3 after archival [-3 points]
+- [ ] Using unscalable/blocking approaches for archival [-5 points]
+- [ ] Missing description of archive process [-10 points]
+- [ ] Inadequate description of archive process [-1-5 points]
+
+Again this is difficult to evaluate. The delayed SQS queue is a great way to
+handle the archival process and very scaleable.
+
+8. [0/0 points] Enable Free users to upgrade to Premium via Stripe payments
+(Skipped this quarter)
+
+9. [25/30 points] Restore data for users that upgrade to Premium
+- [ ] Results file not available after upgrade [-5 points]
+- [ ] Using unscalable/blocking approaches in restore/thaw process [-5 points]
+- [ ] Missing description of restore/thaw processes [-10 points]
+- [x] Inadequate description of restore/thaw processes [-5 points]
+
+Sending an SQS message to another async worker is the right approach, but you're
+using a DynamoDB scan() which is slow and expensive. With the right Dynamo
+schema design this would be unnecessary.
+
+10. [13/13 points] Add a load balancer for the GAS web servers
+- [ ] ELB has more (or less) than 2 instances [-2 points]
+
+11. [8/8 points] Add auto scaling rules to the web server farm
+- [ ] Web autoscaling group incorrectly configured [-5 points]
+- [ ] Web autoscaler not working (i.e. terminated instances not replaced)
+      or web app not reachable at <CNetID>.mpcs-cc.com after instance replacement [-10 points]
+
+Web autoscaling looks great.
+
+12. [11/19 points] Add scaling rules to the annotator
+- [ ] Annotator autoscaling group incorrectly configured [-5 points]
+- [x] Annotator autoscaler not working (i.e. terminated instances not replaced)
+      or jobs fail to complete after web/ann instances are terminated and replaced [-10 points]
+
+I think the failure to run ann jobs is due to something with the autoscaling.
+Things come back up but don't function correctly afterward. -8 pts
+
+* References (check one)
+- [ ] No references provided [-10 points]
+- [ ] Missing reference where expected [-2 points per occurence]
+
+* Error handling
+- [ ] Catching only generic exceptions [-1 point]
+- [ ] No error handling at all [-2 points]
+- [ ] Missing other critical errors (see list below)
+
+* Environment Validation
+- [ ] Input files not stored correctly (i.e. without user ID and UUID prefixes) [-5 points]
+- [ ] Results files not stored correctly (i.e. without user ID and UUID prefixes) [-5 points]
+- [ ] Log files not stored correctly (i.e. without user ID and UUID prefixes) [-5 points]
+- [ ] DyanmoDB not reflecting PENDING status [-2 points]
+- [ ] DyanmoDB not reflecting RUNNING status [-2 points]
+- [ ] DyanmoDB not reflecting COMPLETED status [-2 points]
+
+I see code to do all of this if the jobs got running correctly.
+
+- [x] Using scan() on DynamoDB table [-3 points per occurrence]
+- [ ] Unhealthy target instance(s) in ELB [-5 points]
+- [ ] EC2 instances tagged incorrectly/untagged [-1 point per instance]
+- [ ] Security group includes unnecessary open port(s) [-1 point per occurence]
+- [ ] Utility script not running [-3 points per script]
+- [ ] Web and annotator server processes not running as user "ubuntu" [-3 points per]
+
+* Code Review/Other Notes:
+views.py
+- [ ] Not checking if put_item() succeeds before sending SNS notification [-2 points]
+- [ ] Hardcoded constants that should be in config.py [-1 point each occurence]
+- [ ] Route handler does not have @authenticated decorator [-1 point per occurrence]
+
+annotator.py
+- [ ] Not catching failed message deletion after spawning the annotation subprocess [-1 point]
+- [ ] Not using config file [-2 points]
+
+run.py
+- [ ] Not catching errors when storing results/log files on S3 [-2 points]
+- [ ] Not catching errors when updating the DynamoDB item [-2 points]
+- [ ] Not using config file [-2 points]
+
+archive.py
+- [ ] Not catching error that archive request failed [-1 point]
+- [ ] Not using config file [-2 points]
+
+restore.py
+- [ ] Not attempting expedited retrieval [-1 point]
+- [ ] Not falling back to standard retrieval after expedited retrieval fails [-2 points]
+- [ ] Not catching error that restore request failed [-1 point]
+- [ ] Not using config file [-2 points]
+
+thaw.py
+- [ ] Not catching error that object PUT to S3 failed [-1 point]
+- [ ] Glacier archive not deleted after object is copied to S3 [-3 points]
+- [ ] Using any blocking approach to wait for restored objects [-5 points]
+- [ ] Not using config file [-2 points]
+
+General
+- [ ] Hardcoded credentials anywhere [-10 points]
+
+* Bonus - Ex. 13 [0/10 points]
+- [ ] Description and explanation of scale out behavior [+1-5 points]
+- [ ] Description and explanation of scale in behavior [+1-5 points]
+
+* Bonus - Ex. 14 [0/10 points]
+- [ ] ann_load.py script works [+5 points]
+- [ ] Description and explanation of observed behavior [+1-5 points]
+
+Bonus points: 3
+
+Grade: 119/145
